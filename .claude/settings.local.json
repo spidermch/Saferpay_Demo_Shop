@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:docs.direct.worldline-solutions.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(pyinstaller:*)",
+      "Bash(winget install:*)"
+    ]
+  }
+}

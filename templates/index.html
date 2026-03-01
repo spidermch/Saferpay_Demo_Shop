@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saferpay Explorer - SMB Merchant Demo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-brand">
+            <img src="{{ url_for('static', filename='img/worldline_logo.svg') }}" alt="Worldline" class="brand-logo">
+            <div class="brand-divider"></div>
+            <div>
+                <h1>Saferpay Explorer</h1>
+                <span class="brand-subtitle">SMB Merchant Demo &middot; v2.1</span>
+            </div>
+        </div>
+        <nav class="header-tabs">
+            <button class="tab-btn active" data-tab="explorer">Explorer</button>
+            <button class="tab-btn" data-tab="products">Products</button>
+            <button class="tab-btn" data-tab="orders">Orders</button>
+            <button class="tab-btn" data-tab="customers">Customers</button>
+            <button class="tab-btn" data-tab="code">Code</button>
+            <button class="tab-btn" data-tab="config">Config</button>
+        </nav>
+        <div class="header-status" id="config-status-badge"></div>
+    </header>
+
+    <!-- Config Banner -->
+    <div class="config-banner" id="config-banner">
+        <span>&#9888; No API credentials configured.</span>
+        <button onclick="switchTab('config')">Set up now</button>
+    </div>
+
+    <!-- ==================== EXPLORER ==================== -->
+    <main class="tab-content active" id="tab-explorer">
+        <div class="split-view">
+            <div class="panel shopper-panel">
+                <div class="panel-header">
+                    <h2>Shopper View</h2>
+                    <span class="panel-badge">Customer Journey</span>
+                </div>
+                <div class="panel-body" id="shopper-content"></div>
+            </div>
+            <div class="split-handle" id="split-handle"></div>
+            <div class="panel developer-panel">
+                <div class="panel-header dark">
+                    <h2>Developer View</h2>
+                    <div class="panel-header-actions">
+                        <span class="panel-badge">Live API Debugger</span>
+                        <button class="btn-sm btn-ghost" onclick="clearLogs()">Clear</button>
+                    </div>
+                </div>
+                <div class="panel-body dark" id="developer-content">
+                    <div class="dev-empty-state">
+                        <div class="dev-empty-icon">&lt;/&gt;</div>
+                        <p>API calls will appear here as the shopper moves through the payment flow.</p>
+                        <p class="dev-hint">Start by adding items to the cart and checking out.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== PRODUCTS ==================== -->
+    <main class="tab-content" id="tab-products">
+        <div class="page-container">
+            <div class="page-header">
+                <h2>Product Catalog</h2>
+                <button class="btn btn-primary" onclick="showAddProduct()">+ Add Product</button>
+            </div>
+            <!-- Add/Edit Product Form (hidden by default) -->
+            <div class="card form-card hidden" id="product-form-card">
+                <h3 id="product-form-title">Add Product</h3>
+                <form id="product-form" onsubmit="return saveProduct(event)">
+                    <input type="hidden" id="pf-id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name <span class="required">*</span></label>
+                            <input type="text" id="pf-name" required placeholder="Product name">
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <label>Price (CHF) <span class="required">*</span></label>
+                            <input type="number" id="pf-price" required step="0.01" min="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="pf-desc" placeholder="Short description">
+                    </div>
+                    <div class="form-group">
+                        <label>Icon</label>
+                        <div class="icon-picker" id="icon-picker"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="pf-submit-btn">Add Product</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideProductForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <div class="product-grid" id="products-grid"></div>
+        </div>
+    </main>
+
+    <!-- ==================== ORDERS ==================== -->
+    <main class="tab-content" id="tab-orders">
+        <div class="page-container">
+            <div class="page-header">
+                <h2>Orders &amp; Transactions</h2>
+                <div style="display:flex;gap:.5rem">
+                    <button class="btn btn-secondary" onclick="showFeatureAudit()">Feature Audit</button>
+                    <button class="btn btn-secondary" onclick="refreshOrders()">Refresh</button>
+                </div>
+            </div>
+            <!-- Main orders view -->
+            <div id="orders-main-view">
+                <div class="stats-row" id="order-stats">
+                    <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Orders</div></div>
+                    <div class="stat-card"><div class="stat-value" id="stat-revenue">CHF 0.00</div><div class="stat-label">Total Volume</div></div>
+                    <div class="stat-card stat-authorized"><div class="stat-value" id="stat-authorized">0</div><div class="stat-label">Authorized</div></div>
+                    <div class="stat-card stat-captured"><div class="stat-value" id="stat-captured">0</div><div class="stat-label">Captured</div></div>
+                </div>
+                <div class="card">
+                    <table class="txn-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Flow</th>
+                                <th>Payment</th>
+                                <th>Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txn-table-body">
+                            <tr class="empty-row"><td colspan="8">No transactions yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Feature Audit panel (hidden by default) -->
+            <div class="hidden" id="feature-audit-panel">
+                <button class="btn btn-secondary mb-1" onclick="backToOrders()">&larr; Back to Orders</button>
+                <div id="feature-audit-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== CUSTOMERS ==================== -->
+    <main class="tab-content" id="tab-customers">
+        <div class="page-container">
+            <div class="page-header">
+                <h2>Customer CRM</h2>
+                <button class="btn btn-primary" onclick="showAddCustomer()">+ Add Customer</button>
+            </div>
+            <!-- Add/Edit Customer Form -->
+            <div class="card form-card hidden" id="customer-form-card">
+                <h3 id="customer-form-title">Add Customer</h3>
+                <form id="customer-form" onsubmit="return saveCustomer(event)">
+                    <input type="hidden" id="cf-id">
+                    <div class="form-row">
+                        <div class="form-group"><label>Name <span class="required">*</span></label><input type="text" id="cf-name" required placeholder="Full name"></div>
+                        <div class="form-group"><label>Email</label><input type="email" id="cf-email" placeholder="email@example.com"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Company</label><input type="text" id="cf-company" placeholder="Company name"></div>
+                        <div class="form-group"><label>Phone</label><input type="text" id="cf-phone" placeholder="+41 ..."></div>
+                    </div>
+                    <div class="form-group"><label>Address</label><input type="text" id="cf-address" placeholder="Street, City, Country"></div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="cf-submit-btn">Add Customer</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideCustomerForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <!-- Customer List -->
+            <div id="customer-list-view">
+                <div class="search-bar">
+                    <input type="text" id="customer-search" placeholder="Search customers..." oninput="renderCustomerList()">
+                </div>
+                <div class="customer-grid" id="customers-grid"></div>
+            </div>
+            <!-- Customer Detail (hidden by default) -->
+            <div class="hidden" id="customer-detail-view">
+                <button class="btn btn-secondary mb-1" onclick="backToCustomerList()">&larr; All Customers</button>
+                <div id="customer-detail-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== CODE VIEWER ==================== -->
+    <main class="tab-content" id="tab-code">
+        <div class="page-container">
+            <div class="page-header">
+                <h2>Source Code</h2>
+                <div class="code-header-actions">
+                    <div class="code-file-tabs" id="code-file-tabs">
+                        <button class="code-file-btn active" data-file="app.py" onclick="loadCode('app.py',this)">app.py</button>
+                        <button class="code-file-btn" data-file="app.js" onclick="loadCode('app.js',this)">app.js</button>
+                        <button class="code-file-btn" data-file="style.css" onclick="loadCode('style.css',this)">style.css</button>
+                        <button class="code-file-btn" data-file="index.html" onclick="loadCode('index.html',this)">index.html</button>
+                    </div>
+                    <div class="code-lock" id="code-lock">
+                        <span class="lock-badge" id="lock-badge">Read Only</span>
+                        <button class="btn btn-sm btn-secondary" id="unlock-btn" onclick="showUnlockPrompt()">Unlock Edit</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Unlock Prompt -->
+            <div class="card form-card hidden" id="unlock-prompt">
+                <h3>Service Mode</h3>
+                <p style="font-size:.82rem;color:var(--text-sec);margin-bottom:.75rem">Enter the service password to enable code editing.</p>
+                <div class="form-row">
+                    <div class="form-group"><input type="password" id="unlock-password" placeholder="Service password" onkeydown="if(event.key==='Enter')unlockCode()"></div>
+                    <div class="form-actions" style="margin-bottom:.85rem"><button class="btn btn-primary" onclick="unlockCode()">Unlock</button><button class="btn btn-secondary" onclick="$('unlock-prompt').classList.add('hidden')">Cancel</button></div>
+                </div>
+                <span class="form-message" id="unlock-message"></span>
+            </div>
+            <!-- Code Display -->
+            <div class="code-viewer-container">
+                <div class="code-viewer card" id="code-viewer">
+                    <div class="code-toolbar" id="code-toolbar">
+                        <span class="code-filename" id="code-filename">app.py</span>
+                        <span class="code-lang" id="code-lang">python</span>
+                        <button class="btn btn-sm btn-success hidden" id="code-save-btn" onclick="saveCode()">Save Changes</button>
+                    </div>
+                    <div class="code-content" id="code-content">
+                        <p class="text-muted text-center" style="padding:2rem">Select a file to view its source code with annotations.</p>
+                    </div>
+                </div>
+                <div class="code-legend card">
+                    <h4>Legend</h4>
+                    <div class="legend-item"><span class="legend-dot legend-dot-annotation"></span> Annotated line - hover/click for explanation</div>
+                    <div class="legend-item"><span class="legend-dot legend-dot-route"></span> API route / endpoint</div>
+                    <div class="legend-item"><span class="legend-dot legend-dot-saferpay"></span> Saferpay API interaction</div>
+                    <h4 style="margin-top:.75rem">About</h4>
+                    <p style="font-size:.78rem;color:var(--text-sec)">This view shows the actual application source code with educational annotations on the most important lines. It helps developers and technical merchants understand how the Saferpay integration works behind the scenes.</p>
+                    <p style="font-size:.78rem;color:var(--text-sec);margin-top:.4rem">Editing is locked by default. Use the service password to unlock changes (for authorized personnel only).</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== CONFIG ==================== -->
+    <main class="tab-content" id="tab-config">
+        <div class="config-page">
+            <div class="card">
+                <div class="config-card-header">
+                    <h2>API Configuration</h2>
+                    <p>Enter your Saferpay JSON API test credentials. Stored in browser session only.</p>
+                </div>
+                <form id="config-form" onsubmit="return saveConfig(event)">
+                    <div class="form-group"><label for="cfg-customer-id">Customer ID <span class="required">*</span></label><input type="text" id="cfg-customer-id" placeholder="e.g. 123456" required><small>Your Saferpay Customer ID</small></div>
+                    <div class="form-group"><label for="cfg-terminal-id">Terminal ID <span class="required">*</span></label><input type="text" id="cfg-terminal-id" placeholder="e.g. 12345678" required><small>The Terminal ID for processing payments</small></div>
+                    <div class="form-group"><label for="cfg-username">API Username <span class="required">*</span></label><input type="text" id="cfg-username" placeholder="e.g. API_123456_01234567" required><small>JSON API username from Saferpay Backoffice</small></div>
+                    <div class="form-group"><label for="cfg-password">API Password <span class="required">*</span></label><input type="password" id="cfg-password" placeholder="API password" required><small>JSON API password from Saferpay Backoffice</small></div>
+                    <div class="form-group"><label for="cfg-base-url">Base URL</label>
+                        <select id="cfg-base-url">
+                            <option value="https://test.saferpay.com/api">Test: https://test.saferpay.com/api</option>
+                            <option value="https://www.saferpay.com/api">Production: https://www.saferpay.com/api</option>
+                        </select><small>Use the Test environment for demos</small>
+                    </div>
+                    <div class="form-group"><label for="cfg-spec-version">API SpecVersion</label>
+                        <select id="cfg-spec-version" onchange="onVersionChange()">
+                            <option value="1.05">1.05 (2015 - Initial)</option>
+                            <option value="1.10">1.10 (2016 - Tokenization)</option>
+                            <option value="1.15">1.15 (2017 - Refunds)</option>
+                            <option value="1.20">1.20 (2018 - Secure Fields)</option>
+                            <option value="1.25">1.25 (2019 - 3DS 2.0)</option>
+                            <option value="1.30">1.30 (2020 - Multipart)</option>
+                            <option value="1.33" selected>1.33 (2022 - Default)</option>
+                            <option value="1.38">1.38 (2023 - Order Enhancements)</option>
+                            <option value="1.41">1.41 (2024-Q1 - Click to Pay)</option>
+                            <option value="1.44">1.44 (2024-Q4 - Latest)</option>
+                        </select><small>The SpecVersion sent in every API RequestHeader. Different versions support different features.</small>
+                    </div>
+                    <div class="hidden" id="version-info-panel"></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-primary" id="config-save-btn">Save Configuration</button><span class="form-message" id="config-message"></span></div>
+                </form>
+            </div>
+            <div class="card config-help">
+                <h3>Test Card Numbers</h3>
+                <table class="help-table">
+                    <tr><td>Visa</td><td><code>9010 1000 0000 0001 11</code></td></tr>
+                    <tr><td>Mastercard</td><td><code>9030 1000 0000 0001 30</code></td></tr>
+                    <tr><td>Amex</td><td><code>9070 1000 0000 0007 43</code></td></tr>
+                </table>
+                <small>Expiry: any future date &middot; CVC: any 3 digits</small>
+                <h3 style="margin-top:1rem">Order Settings</h3>
+                <div class="form-group"><label>Order ID Prefix</label><input type="text" id="cfg-order-prefix" value="DEMO" placeholder="DEMO"><small>Prefix for generated order IDs</small></div>
+                <div class="form-group"><label>Order ID Pattern</label>
+                    <select id="cfg-order-pattern">
+                        <option value="prefix-uuid">PREFIX-UUID (e.g. DEMO-A1B2C3D4)</option>
+                        <option value="prefix-timestamp">PREFIX-TIMESTAMP (e.g. DEMO-20260301)</option>
+                        <option value="prefix-seq">PREFIX-SEQ (e.g. DEMO-143022)</option>
+                        <option value="flow-prefix-uuid">FLOW-PREFIX-UUID (e.g. PP-DEMO-A1B2)</option>
+                    </select><small>Pattern for unique order identifiers</small>
+                </div>
+                <div class="form-group"><label>Default Description</label><input type="text" id="cfg-order-desc" value="Saferpay Explorer Demo Order" placeholder="Payment description"><small>Sent as Payment.Description to Saferpay</small></div>
+                <div class="form-group"><label>Payer Note</label><input type="text" id="cfg-payer-note" placeholder="Optional message to payer"><small>Sent as Payment.PayerNote (shown to cardholder)</small></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Order Journey Overlay -->
+    <div class="hidden" id="order-journey-overlay"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

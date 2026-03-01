@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saferpay Explorer - Payment Return</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f7fa;color:#333}
+        .card{background:#fff;border-radius:12px;padding:3rem;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center;max-width:400px}
+        .icon{font-size:3rem;margin-bottom:1rem}
+        h2{margin-bottom:.5rem}
+        p{color:#666;margin-bottom:1.5rem}
+        .close-note{font-size:.85rem;color:#999}
+    </style>
+</head>
+<body>
+    <div class="card">
+        {% if status == 'success' %}
+        <div class="icon">&#10003;</div>
+        <h2>Payment Completed</h2>
+        <p>Returning to the Explorer...</p>
+        {% elif status == 'transaction_return' %}
+        <div class="icon">&#8635;</div>
+        <h2>Processing Payment</h2>
+        <p>Verifying transaction result...</p>
+        {% else %}
+        <div class="icon">&#10007;</div>
+        <h2>Payment Cancelled</h2>
+        <p>Returning to the Explorer...</p>
+        {% endif %}
+        <div class="close-note">This window will close automatically.</div>
+    </div>
+    <script>
+        (function(){
+            var status = '{{ status }}';
+            if(window.opener){
+                window.opener.postMessage({type:'saferpay_return',status:status},'*');
+                setTimeout(function(){window.close()},1500);
+            }else{
+                document.querySelector('.close-note').textContent='You can close this tab and return to the Explorer.';
+            }
+        })();
+    </script>
+</body>
+</html>

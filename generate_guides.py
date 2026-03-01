@@ -215,6 +215,28 @@ class WLGuide(FPDF):
             self.bullet(it)
         self.ln(2)
 
+    def step(self, icon, tool, action, expect):
+        """Render a step with icon, tool, action, expected result."""
+        self.set_font("Helvetica", "B", 10)
+        self.set_text_color(*WL_RED)
+        self.set_x(self.l_margin)
+        self.cell(8, 6, icon)
+        self.set_font("Helvetica", "B", 9.5)
+        self.set_text_color(*WL_NAVY)
+        self.cell(self.get_string_width(tool) + 2, 6, tool)
+        self.set_font("Helvetica", "", 9.5)
+        self.set_text_color(*WL_DARK)
+        self.multi_cell(0, 6, f"  {action}")
+        # Expected result
+        self.set_fill_color(240, 249, 255)
+        w = self.w - self.l_margin - self.r_margin
+        self.set_x(self.l_margin + 8)
+        self.set_font("Helvetica", "I", 8.5)
+        self.set_text_color(*WL_GREEN)
+        self.cell(w - 8, 5, f"  >> You see: {expect}", fill=True, new_x="LMARGIN", new_y="NEXT")
+        self.set_text_color(*WL_DARK)
+        self.ln(2.5)
+
 
 # ============================================================
 #  DEPLOYMENT GUIDE
@@ -229,158 +251,325 @@ def build_deployment_guide():
     pdf.set_text_color(*WL_NAVY)
     pdf.cell(0, 11, "Table of Contents", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
-    for n, t in [("1","One-Click Start (Recommended)"),("2","Prerequisites (Developer Setup)"),("3","Check Your System"),("4","Get the Project Files"),
-                  ("5","Run from Source"),("6","Deploy to Railway"),("7","Configure Saferpay Credentials"),
-                  ("8","Test Card Numbers"),("9","Troubleshooting"),("10","Project File Overview"),("11","Version History")]:
+    for n, t in [
+        ("1", "Quick Overview: 3 Ways to Run"),
+        ("2", "Method A: One-Click .exe (Easiest)"),
+        ("3", "Method B: Download from GitHub"),
+        ("4", "Method C: Run from Source Code"),
+        ("5", "Method D: Deploy to Railway (Cloud)"),
+        ("6", "Configure Saferpay Credentials"),
+        ("7", "Your First Payment (Step by Step)"),
+        ("8", "Test Card Numbers"),
+        ("9", "Troubleshooting"),
+        ("10", "Project File Overview"),
+        ("11", "Version History"),
+    ]:
         pdf.toc_entry(n, t)
 
-    # 1 - One-Click Start
+    # ============ 1 - Quick Overview ============
     pdf.add_page()
-    pdf.section("1", "One-Click Start (Recommended)")
-    pdf.txt("The fastest way to run Saferpay Explorer. No Python installation needed, no command line, no setup - just one double-click.")
+    pdf.section("1", "Quick Overview: 3 Ways to Run")
+    pdf.txt("Choose the method that fits your situation. All three get you the same app.")
+    pdf.ln(3)
+
+    # Method A box
+    pdf.set_fill_color(236, 253, 245)
+    x0, w = pdf.l_margin, pdf.w - pdf.l_margin - pdf.r_margin
+    y0 = pdf.get_y()
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*WL_GREEN)
+    pdf.set_x(x0)
+    pdf.cell(w, 7, "  [A]  ONE-CLICK .EXE  --  Best for: demos, presentations, quick access", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(5, 80, 60)
+    pdf.set_x(x0)
+    pdf.cell(w, 5.5, "  Double-click Saferpay_Explorer.exe. Done. No install, no terminal, nothing.", fill=True, new_x="LMARGIN", new_y="NEXT")
+    y1 = pdf.get_y()
+    pdf.set_draw_color(*WL_GREEN)
+    pdf.rect(x0, y0, w, y1 - y0)
+    pdf.ln(4)
+
+    # Method B box
+    pdf.set_fill_color(*WL_LIGHT)
+    y0 = pdf.get_y()
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*WL_NAVY)
+    pdf.set_x(x0)
+    pdf.cell(w, 7, "  [B]  GITHUB DOWNLOAD  --  Best for: getting the latest version", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(*WL_DARK)
+    pdf.set_x(x0)
+    pdf.cell(w, 5.5, "  Go to GitHub, download the .exe or the source code ZIP. Takes 2 minutes.", fill=True, new_x="LMARGIN", new_y="NEXT")
+    y1 = pdf.get_y()
+    pdf.set_draw_color(*WL_NAVY)
+    pdf.rect(x0, y0, w, y1 - y0)
+    pdf.ln(4)
+
+    # Method C box
+    pdf.set_fill_color(*WL_LIGHT)
+    y0 = pdf.get_y()
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*WL_GREY)
+    pdf.set_x(x0)
+    pdf.cell(w, 7, "  [C]  PYTHON SOURCE  --  Best for: developers who want to modify code", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(*WL_DARK)
+    pdf.set_x(x0)
+    pdf.cell(w, 5.5, "  Needs Python installed. Clone repo, pip install, python app.py.", fill=True, new_x="LMARGIN", new_y="NEXT")
+    y1 = pdf.get_y()
+    pdf.set_draw_color(*WL_GREY)
+    pdf.rect(x0, y0, w, y1 - y0)
+    pdf.ln(4)
+
+    # Method D box
+    pdf.set_fill_color(255, 251, 235)
+    y0 = pdf.get_y()
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*WL_AMBER)
+    pdf.set_x(x0)
+    pdf.cell(w, 7, "  [D]  RAILWAY CLOUD  --  Best for: sharing a URL with colleagues", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(120, 60, 0)
+    pdf.set_x(x0)
+    pdf.cell(w, 5.5, "  Deploy to railway.app. Get a public URL anyone can access.", fill=True, new_x="LMARGIN", new_y="NEXT")
+    y1 = pdf.get_y()
+    pdf.set_draw_color(*WL_AMBER)
+    pdf.rect(x0, y0, w, y1 - y0)
+    pdf.ln(5)
+
+    pdf.txt("Not sure? Start with Method A (one-click .exe). You can always switch later.")
+
+    # ============ 2 - Method A: One-Click .exe ============
+    pdf.add_page()
+    pdf.section("2", "Method A: One-Click .exe (Easiest)")
+    pdf.txt("Zero setup. No Python, no terminal, no commands. Just a double-click.")
     pdf.ln(2)
-    pdf.sub("How to Start")
-    pdf.num(1, "Locate the file Saferpay_Explorer.exe in the project folder")
-    pdf.num(2, "Double-click it")
-    pdf.num(3, "A console window opens showing 'Saferpay Explorer starting...'")
-    pdf.num(4, "Your browser opens automatically at http://localhost:5000")
-    pdf.num(5, "Done! Go to the Config tab and enter your Saferpay credentials.")
+    pdf.sub("What You Need")
+    pdf.bullet("Windows 10 or 11")
+    pdf.bullet("The file: Saferpay_Explorer.exe (13 MB)")
+    pdf.bullet("A web browser (Chrome, Edge, Firefox - already on your PC)")
     pdf.ln(2)
-    pdf.tip("ONE CLICK - THAT'S IT", "The .exe bundles Python, Flask, and all dependencies. Nothing else to install. Just double-click and go.")
+    pdf.sub("Step-by-Step")
+    pdf.step(">>", "[File Explorer]", "Find Saferpay_Explorer.exe in your project folder",
+             "A file called Saferpay_Explorer.exe (13 MB)")
+    pdf.step(">>", "[Double-Click]", "Double-click the .exe file",
+             "A black console window opens with text")
+    pdf.step(">>", "[Console]", "Wait 2 seconds. The console shows 'Saferpay Explorer starting...'",
+             "Your default browser opens automatically")
+    pdf.step(">>", "[Browser]", "The app is running! You see the Saferpay Explorer with 6 tabs",
+             "The app at http://localhost:5000 with the Explorer tab active")
+    pdf.ln(1)
+    pdf.tip("THAT'S IT!", "4 steps. You're done. Go to Section 6 to configure your Saferpay credentials.")
     pdf.ln(2)
-    pdf.sub("How to Stop")
-    pdf.txt("Close the console window (the black terminal), or press CTRL+C in it.")
-    pdf.sub("Windows SmartScreen Warning")
-    pdf.txt("On first launch, Windows may show 'Windows protected your PC'. This is normal for unsigned executables. Click 'More info' and then 'Run anyway'.")
-    pdf.sub("When to Use the .exe vs Python")
-    pdf.bullet("Use the .exe for demos, presentations, quick access - no setup required", "Use .exe: ")
-    pdf.bullet("Use Python if you want to modify the source code or deploy to a server", "Use Python: ")
-    pdf.warn("NOTE", "The .exe runs on the machine where you double-click it. For cloud deployment (Railway), use the Python source method (Section 5-6).")
+    pdf.sub("How to Stop the App")
+    pdf.step(">>", "[Console]", "Click the X on the black console window, or press CTRL+C",
+             "The console closes. The app stops. Browser shows 'page not available'.")
+    pdf.ln(1)
+    pdf.sub("Windows SmartScreen Warning (First Launch Only)")
+    pdf.txt("Windows may show: 'Windows protected your PC' - this happens for all unsigned .exe files.")
+    pdf.step(">>", "[SmartScreen]", "Click 'More info' (blue link), then click 'Run anyway'",
+             "The app starts normally. This warning won't appear again.")
 
-    # 2 - Prerequisites (Developer Setup)
+    # ============ 3 - Method B: GitHub Download ============
     pdf.add_page()
-    pdf.section("2", "Prerequisites (Developer Setup)")
-    pdf.txt("Only needed if you want to run from source code or deploy to a server. Skip this if you use the .exe.")
-    pdf.sub("Required Software")
-    pdf.bullet("Python 3.9 or higher - https://www.python.org/downloads/", "Python 3.9+: ")
-    pdf.txt('    IMPORTANT: Check "Add Python to PATH" during installation!')
-    pdf.bullet("pip (comes with Python)", "pip: ")
-    pdf.bullet("Git - https://git-scm.com/downloads", "Git: ")
-    pdf.bullet("A web browser (Chrome, Edge, Firefox)", "Browser: ")
-    pdf.sub("For Railway Deployment (Optional)")
-    pdf.bullet("Railway account - https://railway.app", "Account: ")
-    pdf.bullet("Railway CLI - details in Section 6", "CLI: ")
-    pdf.sub("For Saferpay API Access")
-    pdf.bullet("Saferpay test credentials (Customer ID, Terminal ID, API Username, Password)", "Credentials: ")
-    pdf.bullet("Saferpay Backoffice: https://test.saferpay.com/BO", "Backoffice: ")
-    pdf.tip("TIP", "You can explore the UI without credentials. The Config tab will prompt when needed.")
+    pdf.section("3", "Method B: Download from GitHub")
+    pdf.txt("Get the latest version from GitHub. Two options: download just the .exe, or download everything.")
+    pdf.ln(2)
+    pdf.sub("Option 1: Download Just the .exe (Fastest)")
+    pdf.step(">>", "[Browser]", "Open: https://github.com/spidermch/Saferpay_Demo_Shop/releases",
+             "A page showing 'Saferpay Explorer v2.1.0' with release notes")
+    pdf.step(">>", "[Browser]", "Scroll down to 'Assets'. Click 'Saferpay_Explorer.exe'",
+             "Download starts (13 MB). Wait for it to finish.")
+    pdf.step(">>", "[File Explorer]", "Go to your Downloads folder. Find Saferpay_Explorer.exe",
+             "The file Saferpay_Explorer.exe in your Downloads")
+    pdf.step(">>", "[Double-Click]", "Double-click the .exe file (same as Method A from here)",
+             "Console opens, then browser opens at http://localhost:5000")
+    pdf.ln(2)
+    pdf.sub("Option 2: Download Full Source Code (ZIP)")
+    pdf.step(">>", "[Browser]", "Open: https://github.com/spidermch/Saferpay_Demo_Shop",
+             "The GitHub repository page with file listing")
+    pdf.step(">>", "[Browser]", "Click the green '<> Code' button (top right of file list)",
+             "A dropdown menu appears")
+    pdf.step(">>", "[Browser]", "Click 'Download ZIP'",
+             "A file Saferpay_Demo_Shop-master.zip downloads")
+    pdf.step(">>", "[File Explorer]", "Right-click the ZIP > 'Extract All' > choose a folder",
+             "A folder with all project files: app.py, templates/, static/, etc.")
+    pdf.tip("TIP", "With the full source you can also run from Python (Method C) or deploy to Railway (Method D).")
+    pdf.ln(2)
+    pdf.sub("Option 3: Git Clone (Developers)")
+    pdf.step(">>", "[Terminal]", "Open CMD, PowerShell, or Git Bash",
+             "A command line prompt")
+    pdf.code(["git clone https://github.com/spidermch/Saferpay_Demo_Shop.git", "cd Saferpay_Demo_Shop"])
+    pdf.step(">>", "[Terminal]", "Run the two commands above",
+             "'Cloning into Saferpay_Demo_Shop...' and then the project folder")
 
-    # 3
+    # ============ 4 - Method C: Run from Source ============
     pdf.add_page()
-    pdf.section("3", "Check Your System")
-    pdf.txt("Open CMD or PowerShell and verify:")
-    pdf.sub("Python")
-    pdf.code(["python --version", "# Expected: Python 3.9+ (e.g. Python 3.12.8)"])
-    pdf.sub("pip")
-    pdf.code(["pip --version", "# If not found: python -m pip --version"])
-    pdf.sub("Git")
-    pdf.code(["git --version"])
-    pdf.sub("Network")
-    pdf.code(["curl https://test.saferpay.com/api --head"])
-    pdf.warn("CORPORATE PROXY", "Set HTTPS_PROXY and HTTP_PROXY env vars if behind a proxy.")
-
-    # 4
-    pdf.section("4", "Get the Project Files")
-    pdf.txt("Only needed if running from source. If using the .exe, skip to Section 7.")
-    pdf.sub("Option A: Git Clone")
-    pdf.code(["git clone <REPOSITORY_URL>", "cd Saferpay_Demo_Shop"])
-    pdf.sub("Option B: Copy Folder")
-    pdf.num(1, "Extract ZIP to e.g. C:\\Projects\\Saferpay_Demo_Shop")
-    pdf.num(2, "cd C:\\Projects\\Saferpay_Demo_Shop")
-    pdf.sub("Verify Structure")
-    pdf.code(["Saferpay_Explorer.exe   <-- One-click start!", "app.py  requirements.txt  Procfile  runtime.txt", "templates/  static/  generate_guides.py"])
-
-    # 5
-    pdf.add_page()
-    pdf.section("5", "Run from Source (Developer Method)")
-    pdf.txt("Alternative to the .exe. Use this if you want to modify the code or need a custom setup.")
-    pdf.sub("Step 1: Virtual Environment")
-    pdf.code(["python -m venv venv", "venv\\Scripts\\activate        # Windows CMD", "source venv/bin/activate     # macOS/Linux"])
-    pdf.sub("Step 2: Install Dependencies")
+    pdf.section("4", "Method C: Run from Source Code")
+    pdf.txt("For developers who want to modify the code. Requires Python to be installed.")
+    pdf.ln(2)
+    pdf.sub("Prerequisites: Install Python")
+    pdf.step(">>", "[Browser]", "Go to https://www.python.org/downloads/ and click 'Download Python 3.12'",
+             "A Python installer file downloads (about 25 MB)")
+    pdf.step(">>", "[Installer]", "Run the installer. IMPORTANT: Check the box 'Add Python to PATH'!",
+             "Python installs. The checkbox is at the BOTTOM of the first screen.")
+    pdf.warn("ADD TO PATH", "If you forget this checkbox, 'python' won't work in the terminal. You'd need to reinstall.")
+    pdf.step(">>", "[Terminal]", "Open CMD or PowerShell. Type: python --version",
+             "'Python 3.12.8' (or similar). If you see this, Python is installed correctly.")
+    pdf.ln(2)
+    pdf.sub("Get the Project Files")
+    pdf.txt("Use GitHub download (Section 3) or copy the project folder.")
+    pdf.ln(2)
+    pdf.sub("Install, Run, Open")
+    pdf.step(">>", "[Terminal]", "Navigate to the project folder:",
+             "Your prompt shows the project folder path")
+    pdf.code(["cd C:\\Projects\\Saferpay_Demo_Shop"])
+    pdf.step(">>", "[Terminal]", "Create a virtual environment and activate it:",
+             "'(venv)' appears at the start of your prompt")
+    pdf.code(["python -m venv venv", "venv\\Scripts\\activate"])
+    pdf.step(">>", "[Terminal]", "Install dependencies (takes ~10 seconds):",
+             "'Successfully installed Flask requests ...'")
     pdf.code(["pip install -r requirements.txt"])
-    pdf.sub("Step 3: Start the App")
-    pdf.code(["python app.py", "# Running on http://127.0.0.1:5000"])
-    pdf.sub("Step 4: Open Browser")
-    pdf.code(["http://localhost:5000"])
-    pdf.tip("TIP", "Press CTRL+C to stop. Run 'python app.py' to restart.")
+    pdf.step(">>", "[Terminal]", "Start the app:",
+             "'Running on http://127.0.0.1:5000'")
+    pdf.code(["python app.py"])
+    pdf.step(">>", "[Browser]", "Open http://localhost:5000 in your browser",
+             "The Saferpay Explorer app with 6 tabs")
+    pdf.tip("TO STOP", "Press CTRL+C in the terminal. To restart: type 'python app.py' again.")
 
-    # 6
+    # ============ 5 - Method D: Deploy to Railway ============
     pdf.add_page()
-    pdf.section("6", "Deploy to Railway")
-    pdf.txt("Railway is a cloud platform. The app includes Procfile + runtime.txt for auto-detection.")
-    pdf.sub("CLI Method")
-    pdf.num(1, "Sign up at https://railway.app")
-    pdf.num(2, "Install CLI: npm install -g @railway/cli")
-    pdf.num(3, "railway login")
-    pdf.num(4, "cd Saferpay_Demo_Shop && railway init")
-    pdf.num(5, "railway variables set SECRET_KEY=your-random-key")
-    pdf.num(6, "railway up")
-    pdf.num(7, "railway open")
-    pdf.sub("Dashboard Method (No CLI)")
-    pdf.num(1, "Push to GitHub")
-    pdf.num(2, "railway.app > New Project > Deploy from GitHub")
-    pdf.num(3, "Add SECRET_KEY in Variables tab")
-    pdf.num(4, "Settings > Networking > Generate Domain")
-    pdf.tip("TIP", "GitHub pushes trigger automatic redeployment.")
+    pdf.section("5", "Method D: Deploy to Railway (Cloud)")
+    pdf.txt("Host the app online so anyone with the URL can access it. Free tier available.")
+    pdf.ln(2)
+    pdf.sub("What is Railway?")
+    pdf.txt("Railway (railway.app) is a cloud platform that runs your app on the internet. You get a public URL like saferpay-explorer.up.railway.app that colleagues can open from anywhere.")
+    pdf.ln(2)
+    pdf.sub("Step-by-Step (Browser Method - No CLI Needed)")
+    pdf.step(">>", "[Browser]", "Go to https://railway.app and click 'Start a New Project'",
+             "Sign-up page. Sign in with your GitHub account.")
+    pdf.step(">>", "[Railway]", "Click 'Deploy from GitHub Repo'",
+             "A list of your GitHub repositories")
+    pdf.step(">>", "[Railway]", "Select 'Saferpay_Demo_Shop' from the list",
+             "Railway starts building your app (takes 1-2 minutes)")
+    pdf.step(">>", "[Railway]", "Click your project > Variables tab > 'New Variable'",
+             "A form to add environment variables")
+    pdf.step(">>", "[Railway]", "Add: Name=SECRET_KEY, Value=any-random-text-here",
+             "The variable appears in the list")
+    pdf.step(">>", "[Railway]", "Go to Settings > Networking > click 'Generate Domain'",
+             "A public URL like xxx.up.railway.app")
+    pdf.step(">>", "[Browser]", "Open your Railway URL in a new tab",
+             "The Saferpay Explorer running in the cloud!")
+    pdf.tip("AUTO-DEPLOY", "Push changes to GitHub and Railway automatically redeploys within 60 seconds.")
 
-    # 7
-    pdf.page_check()
-    pdf.section("7", "Configure Saferpay Credentials")
-    pdf.txt("Open the app > Config tab. Enter:")
-    pdf.bullet("Customer ID - Your numeric account ID", "Customer ID: ")
-    pdf.bullet("Terminal ID - From Settings > Terminals", "Terminal ID: ")
-    pdf.bullet("API Username - Format: API_XXXXXX_XXXXXXXX", "Username: ")
-    pdf.bullet("API Password - Shown once on creation", "Password: ")
-    pdf.warn("NOTE", "Credentials stored in browser session only. Re-enter after restart.")
+    # ============ 6 - Configure Saferpay Credentials ============
+    pdf.add_page()
+    pdf.section("6", "Configure Saferpay Credentials")
+    pdf.txt("After the app is running (any method), you need to enter your Saferpay test credentials.")
+    pdf.ln(2)
+    pdf.sub("Where to Get Credentials")
+    pdf.step(">>", "[Browser]", "Open https://test.saferpay.com/BO (Saferpay Backoffice)",
+             "Saferpay Backoffice login page")
+    pdf.step(">>", "[Backoffice]", "Log in with your Saferpay test account",
+             "The Saferpay Backoffice dashboard")
+    pdf.step(">>", "[Backoffice]", "Go to Settings > JSON API: note your Customer ID + Terminal ID",
+             "Numeric IDs like Customer ID: 123456, Terminal ID: 12345678")
+    pdf.step(">>", "[Backoffice]", "Go to Settings > JSON API Basic Authentication > Create new",
+             "An API Username (API_XXXXXX_XXXXXXXX) and Password are shown")
+    pdf.warn("SAVE THE PASSWORD", "The password is shown only ONCE. Copy it immediately! If you lose it, create a new one.")
+    pdf.ln(2)
+    pdf.sub("Enter Credentials in the App")
+    pdf.step(">>", "[App]", "Click the 'Config' tab in Saferpay Explorer",
+             "A form with 4 fields and a Save button")
+    pdf.step(">>", "[App]", "Fill in: Customer ID, Terminal ID, API Username, API Password",
+             "All 4 fields filled")
+    pdf.step(">>", "[App]", "Click 'Save Configuration'",
+             "Green message: 'Configuration saved'. Header badge turns green: 'Connected'.")
+    pdf.tip("DONE!", "Your Saferpay Explorer is now connected to the Saferpay test environment. Go to Section 7 to make your first payment!")
 
-    # 8
+    # ============ 7 - First Payment ============
+    pdf.add_page()
+    pdf.section("7", "Your First Payment (Step by Step)")
+    pdf.txt("Let's make a test payment end-to-end. This takes about 60 seconds.")
+    pdf.ln(2)
+    pdf.step(">>", "[App]", "Click the 'Explorer' tab",
+             "Split view: shop on the left, API console on the right")
+    pdf.step(">>", "[Left Panel]", "Click 'Add to Cart' on any product (e.g. Swiss Luxury Watch)",
+             "Cart badge shows '1'. Product is in your cart.")
+    pdf.step(">>", "[Left Panel]", "Click 'Checkout' (or the cart icon)",
+             "Cart summary with total, customer selector, and payment method choice")
+    pdf.step(">>", "[Left Panel]", "Select 'Payment Page' as integration method",
+             "'Payment Page' option is highlighted")
+    pdf.step(">>", "[Left Panel]", "Click 'Pay Now'",
+             "A popup window opens showing the Saferpay payment page")
+    pdf.step(">>", "[Popup]", "Select 'Visa' and enter test card: 9010 1000 0000 0001 11",
+             "Card form filled in")
+    pdf.step(">>", "[Popup]", "Expiry: 12/2030, CVC: 123. Click 'Pay'",
+             "3DS page may appear - click Submit. Popup closes automatically.")
+    pdf.step(">>", "[Left Panel]", "The result appears: 'Payment Authorized'",
+             "Green success message with transaction details")
+    pdf.step(">>", "[Right Panel]", "Check the Developer View on the right side",
+             "3 API calls logged: PP Initialize, PP Assert, with full JSON")
+    pdf.step(">>", "[Left Panel]", "Click the green 'Capture' button",
+             "Status changes to CAPTURED. Right panel shows Capture API call.")
+    pdf.ln(2)
+    pdf.tip("CONGRATULATIONS!", "You've completed your first end-to-end payment flow! Try the Transaction Interface method next or explore the Orders, Customers, and Code tabs.")
+
+    # ============ 8 - Test Cards ============
+    pdf.add_page()
     pdf.section("8", "Test Card Numbers")
-    for brand, num in [("Visa","9010 1000 0000 0001 11"),("Mastercard","9030 1000 0000 0001 30"),
-                        ("American Express","9070 1000 0000 0007 43"),("Diners","9050 1000 0000 0005 17"),("JCB","9060 1000 0000 0006 26")]:
+    pdf.txt("Use these card numbers in the Saferpay test environment. They work for all test payments.")
+    pdf.ln(2)
+    for brand, num in [("Visa", "9010 1000 0000 0001 11"), ("Mastercard", "9030 1000 0000 0001 30"),
+                        ("American Express", "9070 1000 0000 0007 43"), ("Diners", "9050 1000 0000 0005 17"), ("JCB", "9060 1000 0000 0006 26")]:
         pdf.set_font("Helvetica", "B", 9.5)
         pdf.set_text_color(*WL_DARK)
         pdf.cell(38, 5.5, f"  {brand}")
         pdf.set_font("Courier", "", 9.5)
         pdf.cell(0, 5.5, num, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
-    pdf.txt("Expiry: any future date | CVC: any 3 digits | 3DS: submit or 'password'")
+    pdf.sub("Additional Details")
+    pdf.bullet("Any future date (e.g. 12/2030)", "Expiry: ")
+    pdf.bullet("Any 3 digits (e.g. 123)", "CVC: ")
+    pdf.bullet("Click 'Submit' or enter 'password'", "3-D Secure: ")
 
-    # 9
-    pdf.add_page()
+    # ============ 9 - Troubleshooting ============
+    pdf.page_check()
     pdf.section("9", "Troubleshooting")
-    pdf.sub("'python' not recognized")
-    pdf.txt("Reinstall Python with 'Add to PATH' checked.")
-    pdf.sub("pip SSL/proxy errors")
+    pdf.sub("SmartScreen blocks the .exe")
+    pdf.txt("Click 'More info' then 'Run anyway'. This is normal for unsigned apps.")
+    pdf.sub("Browser doesn't open automatically")
+    pdf.txt("Open your browser manually and go to http://localhost:5000")
+    pdf.sub("'python' not recognized (Source method)")
+    pdf.txt("Reinstall Python. Make sure 'Add to PATH' is checked during installation.")
+    pdf.sub("pip SSL/proxy errors (Source method)")
     pdf.code(["pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org"])
-    pdf.sub("Port 5000 in use")
+    pdf.sub("Port 5000 already in use")
+    pdf.txt("Another app is using port 5000. Either close it, or run on a different port:")
     pdf.code(["set PORT=8080 && python app.py"])
-    pdf.sub("Popup blocked")
-    pdf.txt("Allow popups for localhost. Fallback link is shown in the UI.")
-    pdf.sub("401 Unauthorized from Saferpay")
-    pdf.txt("Check username/password in Config tab. Ensure correct environment (test vs prod).")
+    pdf.sub("Payment popup blocked by browser")
+    pdf.txt("Allow popups for localhost in your browser settings. A fallback link is also shown in the UI.")
+    pdf.sub("401 Unauthorized from Saferpay API")
+    pdf.txt("Wrong credentials. Go to Config tab and re-enter. Check: correct Customer ID? Correct username format (API_...)?  Correct environment (test vs prod)?")
+    pdf.sub("App crashes / console closes immediately")
+    pdf.txt("Open CMD first, then drag the .exe into the CMD window and press Enter. You can see the error message before it disappears.")
 
-    # 10
+    # ============ 10 - Project Files ============
+    pdf.add_page()
     pdf.section("10", "Project File Overview")
-    for f, d in [("Saferpay_Explorer.exe","One-click launcher - double-click to start!"),
-                  ("app.py","Flask backend: routes, payment logic, CRM, products, code viewer"),
-                  ("run.py","Launcher script used by the .exe (auto-opens browser)"),
-                  ("requirements.txt","Dependencies: Flask, requests, gunicorn"),
-                  ("Procfile","Railway start command (gunicorn)"),
-                  ("templates/index.html","SPA with 6 tabs: Explorer, Products, Orders, Customers, Code, Config"),
-                  ("static/js/app.js","Client logic: cart, payments, CRM, code viewer"),
-                  ("static/css/style.css","Styling: responsive layout, dark dev console"),
-                  ("static/img/","Worldline logo assets"),
-                  ("generate_guides.py","PDF guide generator script")]:
+    pdf.txt("What each file does:")
+    pdf.ln(2)
+    for f, d in [("Saferpay_Explorer.exe", "One-click launcher - double-click to start!"),
+                  ("app.py", "Flask backend: routes, payment logic, CRM, products, code viewer"),
+                  ("run.py", "Launcher script used by the .exe (auto-opens browser)"),
+                  ("requirements.txt", "Dependencies: Flask, requests, gunicorn"),
+                  ("Procfile", "Railway start command (gunicorn)"),
+                  ("templates/index.html", "SPA with 6 tabs: Explorer, Products, Orders, Customers, Code, Config"),
+                  ("templates/return.html", "Payment popup return page"),
+                  ("static/js/app.js", "Client logic: cart, payments, CRM, code viewer"),
+                  ("static/css/style.css", "Styling: responsive layout, dark dev console"),
+                  ("static/img/", "Worldline logo assets"),
+                  ("generate_guides.py", "PDF guide generator (creates this document)")]:
         pdf.set_font("Courier", "B", 8.5)
         pdf.set_text_color(*WL_RED)
         pdf.cell(42, 5.5, f)
@@ -389,38 +578,26 @@ def build_deployment_guide():
         pdf.multi_cell(0, 5.5, d)
         pdf.ln(0.5)
 
-    # 11
+    # ============ 11 - Version History ============
     pdf.add_page()
     pdf.section("11", "Version History")
     pdf.version_entry("1.0.0", "March 2026", [
         "Initial release: Explorer split-view (Shopper + Developer)",
         "PaymentPage flow: Initialize, Assert, Capture",
         "Configuration tab with credential management",
-        "Merchant dashboard with transaction table",
-        "Railway deployment support (Procfile, runtime.txt)",
     ])
     pdf.version_entry("2.0.0", "March 2026", [
-        "Product catalog management (add, edit, delete, icon picker)",
-        "Customer CRM (contacts, notes, search, lifetime value)",
-        "Transaction Interface flow (Initialize, Authorize, Capture)",
-        "Orders tab with dashboard stats and flow tagging",
-        "Customer linking at checkout",
+        "Product catalog, Customer CRM, Transaction Interface flow",
+        "Orders dashboard with stats and flow tagging",
         "Code viewer with 45 educational annotations",
-        "Password-protected edit mode (service code: ask admin)",
     ])
     pdf.version_entry("2.1.0", "March 2026", [
-        "Worldline branding: logo in app header and PDF guides",
-        "Comprehensive User Guide PDF (this document)",
-        "Updated Deployment Guide PDF with branding",
-        "Version history tracking for all releases",
+        "Worldline branding in app header and PDF guides",
+        "One-click .exe launcher (no Python needed)",
+        "GitHub repository with releases",
+        "Order Journey Viewer, Feature Audit, Version Selector",
+        "Deployment Guide rewritten for clarity",
     ])
-    pdf.sub("Planned")
-    pdf.bullet("Recurring/subscription payment demo")
-    pdf.bullet("Refund/Cancel transaction flow")
-    pdf.bullet("Secure Fields (iframe card input) integration")
-    pdf.bullet("Multi-currency support and conversion display")
-    pdf.bullet("Webhook/notification handling demo")
-    pdf.bullet("PDF invoice generation per order")
 
     pdf.output("Saferpay_Explorer_Deployment_Guide.pdf")
     print("  -> Saferpay_Explorer_Deployment_Guide.pdf")

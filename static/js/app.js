@@ -14,6 +14,7 @@ var state = {
     paymentFlow: 'paymentpage',
     selectedCustomerId: '',
     configured: false,
+    checkoutDetails: { name: '', email: '', address: '', city: '', zip: '', country: '', phone: '' },
     paymentWindow: null,
     products: [],
     customers: [],
@@ -64,19 +65,21 @@ function renderShopper() {
     switch(state.shopView) {
         case 'catalog': el.innerHTML = renderCatalog(); break;
         case 'cart': el.innerHTML = renderCart(); break;
+        case 'customer_details': el.innerHTML = renderCustomerDetails(); break;
         case 'processing': el.innerHTML = renderProcessing(); break;
         case 'result': el.innerHTML = renderResult(); break;
     }
 }
 
 function flowIndicator() {
-    var steps = ['Browse','Cart','Initialize','Payment Page','Assert/Authorize','Capture'];
+    var steps = ['Browse','Cart','Details','Initialize','Payment Page','Assert/Authorize','Capture'];
     var ci = 0, fail = false;
     if (state.shopView === 'cart') ci = 1;
-    else if (state.shopView === 'processing') ci = 3;
+    else if (state.shopView === 'customer_details') ci = 2;
+    else if (state.shopView === 'processing') ci = 4;
     else if (state.shopView === 'result') {
-        if (state.paymentResult && state.paymentResult.success) ci = state.paymentResult.captured ? 5 : 4;
-        else { ci = 3; fail = true; }
+        if (state.paymentResult && state.paymentResult.success) ci = state.paymentResult.captured ? 6 : 5;
+        else { ci = 4; fail = true; }
     }
     var h = '<div class="flow-indicator">';
     for (var i = 0; i < steps.length; i++) {
@@ -120,21 +123,51 @@ function renderCart() {
     h += '</div>';
     // Checkout options
     h += '<div class="cart-footer">';
-    h += '<div class="checkout-section"><label>Customer</label><select id="checkout-customer" onchange="state.selectedCustomerId=this.value">';
-    h += '<option value="">Guest (no customer)</option>';
-    state.customers.forEach(function(c) {
-        var sel = state.selectedCustomerId === c.id ? ' selected' : '';
-        h += '<option value="' + c.id + '"' + sel + '>' + esc(c.name) + (c.company ? ' (' + esc(c.company) + ')' : '') + '</option>';
-    });
-    h += '</select><small>Link this order to a CRM customer</small></div>';
-    h += '<div class="checkout-section"><label>Integration Method</label><select id="checkout-flow" onchange="state.paymentFlow=this.value">';
+    h += '<div class="cart-total"><span>Total</span><span>' + fmt(total) + '</span></div>';
+    h += '<div class="cart-actions"><button class="btn btn-secondary" onclick="showCatalog()">Back</button>';
+    h += '<button class="btn btn-success" onclick="state.shopView=\'customer_details\';loadCustomers(true);renderShopper()">Proceed to Checkout</button></div></div></div>';
+    return h;
+}
+
+function renderCustomerDetails() {
+    var total = cartTotal();
+    var cd = state.checkoutDetails;
+    var h = flowIndicator();
+    h += '<div class="shop-nav"><h3>Customer Details</h3><button class="cart-toggle" onclick="showCart()">Back to Cart</button></div>';
+    h += '<div class="checkout-form-panel">';
+    h += '<div class="checkout-section"><label>Full Name <span class="required">*</span></label><input type="text" id="cd-name" placeholder="John Doe" value="' + esc(cd.name || '') + '"></div>';
+    h += '<div class="checkout-section"><label>Email Address <span class="required">*</span></label><input type="email" id="cd-email" placeholder="john@example.com" value="' + esc(cd.email || '') + '"></div>';
+    h += '<div class="checkout-section"><label>Street Address <span class="required">*</span></label><input type="text" id="cd-address" placeholder="123 Main Street" value="' + esc(cd.address || '') + '"></div>';
+    h += '<div style="display:flex;gap:.5rem">';
+    h += '<div class="checkout-section" style="flex:1"><label>City <span class="required">*</span></label><input type="text" id="cd-city" placeholder="Zurich" value="' + esc(cd.city || '') + '"></div>';
+    h += '<div class="checkout-section" style="flex:1"><label>Postal Code</label><input type="text" id="cd-zip" placeholder="8001" value="' + esc(cd.zip || '') + '"></div>';
+    h += '</div>';
+    h += '<div style="display:flex;gap:.5rem">';
+    h += '<div class="checkout-section" style="flex:1"><label>Country</label><input type="text" id="cd-country" placeholder="Switzerland" value="' + esc(cd.country || '') + '"></div>';
+    h += '<div class="checkout-section" style="flex:1"><label>Phone</label><input type="text" id="cd-phone" placeholder="+41 79 123 4567" value="' + esc(cd.phone || '') + '"></div>';
+    h += '</div>';
+    h += '<p style="font-size:.72rem;color:var(--text-muted);margin-top:.25rem">* Required fields</p>';
+    h += '<div class="checkout-section" style="margin-top:.75rem"><label>Integration Method</label><select id="checkout-flow" onchange="state.paymentFlow=this.value">';
     h += '<option value="paymentpage"' + (state.paymentFlow === 'paymentpage' ? ' selected' : '') + '>Payment Page (full redirect)</option>';
     h += '<option value="transaction"' + (state.paymentFlow === 'transaction' ? ' selected' : '') + '>Transaction Interface (advanced)</option>';
     h += '</select><small>PaymentPage = simple all-in-one. Transaction = more control for the merchant.</small></div>';
-    h += '<div class="cart-total"><span>Total</span><span>' + fmt(total) + '</span></div>';
-    h += '<div class="cart-actions"><button class="btn btn-secondary" onclick="showCatalog()">Back</button>';
-    h += '<button class="btn btn-success" onclick="checkout()" id="checkout-btn">Pay Now</button></div></div></div>';
+    h += '<div style="margin-top:1rem"><button class="btn btn-success" onclick="proceedToPayment()" style="width:100%">Pay ' + fmt(total) + '</button></div>';
+    h += '</div>';
     return h;
+}
+
+function proceedToPayment() {
+    var name = ($('cd-name') || {}).value || '';
+    var email = ($('cd-email') || {}).value || '';
+    var address = ($('cd-address') || {}).value || '';
+    var city = ($('cd-city') || {}).value || '';
+    if (!name.trim() || !email.trim() || !address.trim() || !city.trim()) {
+        alert('Please fill in all required fields (name, email, address, city).');
+        return;
+    }
+    state.checkoutDetails = { name: name, email: email, address: address, city: city, zip: ($('cd-zip') || {}).value || '', country: ($('cd-country') || {}).value || '', phone: ($('cd-phone') || {}).value || '' };
+    state.paymentFlow = ($('checkout-flow') || {}).value || state.paymentFlow;
+    checkout();
 }
 
 function renderProcessing() {
@@ -183,7 +216,7 @@ function addToCart(pid) {
 function removeFromCart(i) { state.cart.splice(i, 1); if (!state.cart.length) state.shopView = 'catalog'; renderShopper(); }
 function showCart() { state.shopView = 'cart'; loadCustomers(true); renderShopper(); }
 function showCatalog() { state.shopView = 'catalog'; renderShopper(); }
-function newOrder() { state.shopView = 'catalog'; state.cart = []; state.currentToken = null; state.currentTransactionId = null; state.paymentResult = null; renderShopper(); }
+function newOrder() { state.shopView = 'catalog'; state.cart = []; state.currentToken = null; state.currentTransactionId = null; state.paymentResult = null; state.checkoutDetails = {name:'',email:'',address:'',city:'',zip:'',country:'',phone:''}; renderShopper(); }
 
 // ---- Payment Flow ----
 async function checkout() {
@@ -196,20 +229,22 @@ async function checkout() {
     state.shopView = 'processing';
     renderShopper();
 
+    var cd = state.checkoutDetails;
     var body = { amount: total, currency: 'CHF', description: desc, items: items, customer_id: state.selectedCustomerId || null };
     var url, flow;
+
+    // Add payer info from checkout details
+    var parts = (cd.name || '').split(' ');
+    body.payer = { LanguageCode: 'en', BillingAddress: { FirstName: parts[0] || '', LastName: parts.slice(1).join(' ') || '' } };
+    if (cd.email) body.payer.BillingAddress.Email = cd.email;
+    if (cd.address) body.payer.BillingAddress.Street = cd.address;
+    if (cd.city) body.payer.BillingAddress.City = cd.city;
+    if (cd.zip) body.payer.BillingAddress.Zip = cd.zip;
+    if (cd.country) body.payer.BillingAddress.CountryCode = cd.country;
 
     if (state.paymentFlow === 'transaction') {
         url = '/api/transaction/initialize';
         flow = 'Transaction';
-        if (state.selectedCustomerId) {
-            var cust = state.customers.find(function(c) { return c.id === state.selectedCustomerId; });
-            if (cust) {
-                var parts = cust.name.split(' ');
-                body.payer = { LanguageCode: 'en', BillingAddress: { FirstName: parts[0] || '', LastName: parts.slice(1).join(' ') || '' } };
-                if (cust.email) body.payer.BillingAddress.Email = cust.email;
-            }
-        }
     } else {
         url = '/api/initialize';
         flow = 'PaymentPage';

@@ -1,9 +1,32 @@
 import os
 import uuid
+import logging
+import traceback
+import json
 import requests as http_requests
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+# ==================== Debug Logger ====================
+DEBUG_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debug.log')
+
+debug_logger = logging.getLogger('saferpay_debug')
+debug_logger.setLevel(logging.DEBUG)
+_fh = logging.FileHandler(DEBUG_LOG_FILE, encoding='utf-8')
+_fh.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(message)s'))
+debug_logger.addHandler(_fh)
+
+def log_error(context, error, extra=None):
+    """Log an error with context to the debug file for remote diagnostics."""
+    entry = {
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'context': context,
+        'error': str(error),
+        'traceback': traceback.format_exc() if traceback.format_exc().strip() != 'NoneType: None' else None,
+        'extra': extra,
+    }
+    debug_logger.error(json.dumps(entry, default=str))
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'saferpay-explorer-dev-key-change-me')
@@ -530,6 +553,7 @@ def initialize_payment():
         else:
             return jsonify({'success': False, 'error': resp.json(), 'log': log_entry}), 400
     except Exception as e:
+        log_error('initialize_payment', e, extra={'order_id': order_id})
         log_entry['status_code'] = 0
         log_entry['response'] = {'error': str(e)}
         store['logs'].append(log_entry)
@@ -576,6 +600,7 @@ def assert_payment():
                 store['transactions'][token]['status'] = 'FAILED'
             return jsonify({'success': False, 'error': resp.json(), 'log': log_entry}), 400
     except Exception as e:
+        log_error('assert_payment', e, extra={'token': token})
         log_entry['status_code'] = 0
         log_entry['response'] = {'error': str(e)}
         store['logs'].append(log_entry)
@@ -652,6 +677,7 @@ def transaction_initialize():
         else:
             return jsonify({'success': False, 'error': resp.json(), 'log': log_entry}), 400
     except Exception as e:
+        log_error('transaction_initialize', e, extra={'order_id': order_id})
         log_entry['status_code'] = 0
         log_entry['response'] = {'error': str(e)}
         store['logs'].append(log_entry)
@@ -698,6 +724,7 @@ def transaction_authorize():
                 store['transactions'][token]['status'] = 'FAILED'
             return jsonify({'success': False, 'error': resp.json(), 'log': log_entry}), 400
     except Exception as e:
+        log_error('transaction_authorize', e, extra={'token': token})
         log_entry['status_code'] = 0
         log_entry['response'] = {'error': str(e)}
         store['logs'].append(log_entry)
@@ -739,6 +766,7 @@ def capture_payment():
         else:
             return jsonify({'success': False, 'error': resp.json(), 'log': log_entry}), 400
     except Exception as e:
+        log_error('capture_payment', e, extra={'transaction_id': transaction_id})
         log_entry['status_code'] = 0
         log_entry['response'] = {'error': str(e)}
         store['logs'].append(log_entry)
@@ -934,6 +962,46 @@ def unlock_code():
     if data.get('password') == SERVICE_PASSWORD:
         return jsonify({'unlocked': True})
     return jsonify({'unlocked': False, 'error': 'Wrong password'}), 403
+
+
+# ==================== Debug Log API ====================
+
+@app.route('/api/debug/logs')
+def get_debug_logs():
+    """Read the debug log file for remote diagnostics."""
+    data = request.args
+    if data.get('password') != SERVICE_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        if os.path.exists(DEBUG_LOG_FILE):
+            with open(DEBUG_LOG_FILE, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            # Return last 200 lines max
+            return jsonify({'logs': lines[-200:], 'total_lines': len(lines)})
+        return jsonify({'logs': [], 'total_lines': 0})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/logs/clear', methods=['POST'])
+def clear_debug_logs():
+    data = request.json or {}
+    if data.get('password') != SERVICE_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        with open(DEBUG_LOG_FILE, 'w', encoding='utf-8') as f:
+            f.write('')
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== Global Error Handler ====================
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    log_error('unhandled_exception', e, extra={'url': request.url, 'method': request.method})
+    return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
 
 
 if __name__ == '__main__':

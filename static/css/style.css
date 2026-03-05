@@ -393,6 +393,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubunt
 .version-missing li::before{content:'- ';font-weight:700;color:var(--danger)}
 .version-tag{font-size:.65rem;opacity:.7}
 
+/* ---- Checkout Form ---- */
+.checkout-form-panel{background:var(--surface);border-radius:var(--radius-lg);padding:1.25rem;box-shadow:var(--shadow)}
+.checkout-summary{background:var(--success-bg);border:1px solid rgba(16,185,129,.2);border-radius:var(--radius);padding:.6rem .85rem;margin-bottom:1rem;font-size:.82rem;color:#047857}
+
 .hidden{display:none!important}
 .text-muted{color:var(--text-muted)}.text-center{text-align:center}
 .mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mb-1{margin-bottom:.5rem}

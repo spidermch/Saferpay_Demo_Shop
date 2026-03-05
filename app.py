@@ -78,7 +78,7 @@ def saferpay_request(endpoint, payload, config):
 
 def build_request_header(config):
     return {
-        "SpecVersion": config.get('spec_version', '1.33'),
+        "SpecVersion": config.get('spec_version', '1.50'),
         "CustomerId": config['customer_id'],
         "RequestId": str(uuid.uuid4()),
         "RetryIndicator": 0
@@ -140,18 +140,36 @@ SAFERPAY_SPEC_VERSIONS = [
     {'version': '1.30', 'release': '2020-Q4',
      'features': ['Multipart Capture', 'Server Notification URLs', 'Improved error codes'],
      'notes': 'Split settlement and server-to-server notifications.'},
-    {'version': '1.33', 'release': '2022-Q1',
-     'features': ['PayerNote field', 'Enhanced Redirect object', 'DCC improvements'],
-     'notes': 'Default version in this demo. PayerNote and DCC enhancements.'},
-    {'version': '1.38', 'release': '2023-Q2',
-     'features': ['Order object enhancements', 'Improved Alias lifecycle', 'Bancontact QR'],
-     'notes': 'Extended order metadata and new payment methods.'},
-    {'version': '1.41', 'release': '2024-Q1',
-     'features': ['Click to Pay', 'Enhanced exemption handling', 'Apple Pay improvements'],
-     'notes': 'Network tokenization and modern wallet integrations.'},
-    {'version': '1.44', 'release': '2024-Q4',
-     'features': ['TWINT improvements', 'Enhanced Payer authentication', 'New risk parameters'],
-     'notes': 'Latest version with Swiss market optimizations.'},
+    {'version': '1.33', 'release': '2023-03',
+     'features': ['PayerNote field', 'Payconiq integration', 'Enhanced Redirect object'],
+     'notes': 'Payconiq payments, PayerNote, and DCC enhancements.'},
+    {'version': '1.38', 'release': '2024-01',
+     'features': ['Account-to-Account Payments', 'Pending transaction status', '3DS challenge enforcement'],
+     'notes': 'A2A force instant option and Secure PayGate enhancements.'},
+    {'version': '1.41', 'release': '2024-07',
+     'features': ['Scheme tokenization', 'Chase Paymentech acquiring', 'TWINT omni-channel/UoF', 'Saferpay Fields dual-branded cards'],
+     'notes': 'Card lifecycle management via scheme tokenization. TWINT UoF support.'},
+    {'version': '1.44', 'release': '2025-01',
+     'features': ['Click to Pay Visa self-onboarding', 'Mastercard Click to Pay registration', 'BLIK enhancements', 'Enhanced Alias Inquire'],
+     'notes': 'Click to Pay rollout and scheme tokenization risk management.'},
+    {'version': '1.45', 'release': '2025-03',
+     'features': ['Reka payment methods', 'Scheme tokenization improvements', 'Click to Pay improvements', 'User Administration enhancements'],
+     'notes': 'Swiss Reka payments and improved scheme tokenization.'},
+    {'version': '1.46', 'release': '2025-05',
+     'features': ['External 3-D Secure data', 'Omnichannel for Worldline UK', 'Enhanced user self-service'],
+     'notes': 'Accept external 3DS authentication results. Omnichannel UK support.'},
+    {'version': '1.47', 'release': '2025-07',
+     'features': ['Redesigned Payment Page (pilot)', 'Redesigned Backoffice (pilot)', 'DCC for Worldline UK', 'Cybersource fraud intelligence'],
+     'notes': 'New Payment Page design pilot and Cybersource DFP integration.'},
+    {'version': '1.48', 'release': '2025-09',
+     'features': ['New Payment Page with Click to Pay', 'Boncard integration', 'Transaction Reporting via Management API', 'Multi-Use Payment Links journal'],
+     'notes': 'Redesigned Payment Page GA with Click to Pay. Boncard (Swiss gift/loyalty). Management API reporting.'},
+    {'version': '1.49', 'release': '2025-11',
+     'features': ['Wero payment method (EPI)', 'Apple Pay in third-party browsers', 'BLIK on Transaction Interface', 'Single-Use Payment Link controls'],
+     'notes': 'Wero (European Payment Initiative) launch. Apple Pay browser expansion.'},
+    {'version': '1.50', 'release': '2026-01',
+     'features': ['PostFinance Pay Instant Payout', 'Wero refund reasons', 'Saferpay OpenAPI specification', 'Mastercard Click to Pay tokenization'],
+     'notes': 'Latest version. PostFinance instant payouts, OpenAPI spec, and Wero refund support.'},
 ]
 
 
@@ -309,7 +327,7 @@ def save_config():
         'username': data['username'].strip(),
         'password': data['password'].strip(),
         'base_url': data.get('base_url', 'https://test.saferpay.com/api').strip().rstrip('/'),
-        'spec_version': data.get('spec_version', '1.33').strip(),
+        'spec_version': data.get('spec_version', '1.50').strip(),
         'order_id_prefix': data.get('order_id_prefix', 'DEMO').strip() or 'DEMO',
         'order_id_pattern': data.get('order_id_pattern', 'prefix-uuid').strip(),
         'default_description': data.get('default_description', 'Saferpay Explorer Demo Order').strip(),
@@ -327,7 +345,7 @@ def config_status():
             'customer_id': config['customer_id'],
             'terminal_id': config['terminal_id'],
             'base_url': config['base_url'],
-            'spec_version': config.get('spec_version', '1.33'),
+            'spec_version': config.get('spec_version', '1.50'),
             'order_id_prefix': config.get('order_id_prefix', 'DEMO'),
             'order_id_pattern': config.get('order_id_pattern', 'prefix-uuid'),
             'default_description': config.get('default_description', 'Saferpay Explorer Demo Order'),
@@ -812,7 +830,7 @@ def clear_transactions():
 @app.route('/api/spec-versions')
 def spec_versions():
     config = get_config()
-    current = config.get('spec_version', '1.33') if config else '1.33'
+    current = config.get('spec_version', '1.50') if config else '1.50'
     return jsonify({'current': current, 'versions': SAFERPAY_SPEC_VERSIONS})
 
 
@@ -865,7 +883,7 @@ ANNOTATIONS = {
         12: 'In-memory store: fast for demo, but lost on restart. Use Redis/DB in production.',
         30: 'All Saferpay API calls use HTTP Basic Auth (username:password)',
         34: 'Always set a timeout on external HTTP calls to avoid hanging requests',
-        38: 'SpecVersion 1.33 = the Saferpay JSON API protocol version we target',
+        38: 'SpecVersion 1.50 = the Saferpay JSON API protocol version we target',
         43: 'RetryIndicator=0 means this is the first attempt (increment on retries)',
         50: 'Single-page app: Flask serves one HTML page, JS handles all views',
         97: 'Session stores config in signed cookie - never store secrets in plain cookies in prod',

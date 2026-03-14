@@ -21,6 +21,8 @@ var state = {
     icons: [],
     selectedIcon: '\uD83C\uDF81',
     customerDetailId: null,
+    showCustomerSearch: false,
+    customerSearchQuery: '',
 };
 
 // ---- Helpers ----
@@ -50,13 +52,30 @@ async function api(url, opts) {
 
 // ---- Tab Switching ----
 function switchTab(name) {
+    // Map old tab names to new structure
+    if (name === 'products') { switchTab('merchant'); switchSubTab('merchant', 'items'); return; }
+    if (name === 'orders') { switchTab('merchant'); switchSubTab('merchant', 'orders'); return; }
+    if (name === 'customers') { switchTab('merchant'); switchSubTab('merchant', 'customers'); return; }
+    if (name === 'code') { switchTab('dev'); switchSubTab('dev', 'code'); return; }
+    if (name === 'config') { switchTab('dev'); switchSubTab('dev', 'config'); return; }
+
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === name); });
     document.querySelectorAll('.tab-content').forEach(function(e) { e.classList.toggle('active', e.id === 'tab-' + name); });
-    if (name === 'products') loadProducts();
-    if (name === 'orders') refreshOrders();
-    if (name === 'customers') loadCustomers();
-    if (name === 'code' && !codeState.currentFile) loadCode('app.py');
 }
+
+function switchSubTab(parentTab, subtab) {
+    var parent = $('tab-' + parentTab);
+    if (!parent) return;
+    parent.querySelectorAll('.subtab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.subtab === subtab); });
+    parent.querySelectorAll('.subtab-content').forEach(function(c) { c.classList.toggle('active', c.id === 'subtab-' + subtab); });
+    // Trigger data loading
+    if (subtab === 'items') loadProducts();
+    if (subtab === 'customers') loadCustomers();
+    if (subtab === 'orders') refreshOrders();
+    if (subtab === 'audit') loadFeatureAudit();
+    if (subtab === 'code' && !codeState.currentFile) loadCode('app.py');
+}
+
 document.querySelectorAll('.tab-btn').forEach(function(b) { b.addEventListener('click', function() { switchTab(this.dataset.tab); }); });
 
 // ================ SHOPPER VIEW ================
@@ -135,6 +154,35 @@ function renderCustomerDetails() {
     var h = flowIndicator();
     h += '<div class="shop-nav"><h3>Customer Details</h3><button class="cart-toggle" onclick="showCart()">Back to Cart</button></div>';
     h += '<div class="checkout-form-panel">';
+    // Customer selection panel
+    h += '<div class="customer-select-panel">';
+    h += '<div class="customer-select-options">';
+    h += '<button class="btn ' + (!state.selectedCustomerId && !state.showCustomerSearch ? 'btn-primary' : 'btn-secondary') + '" onclick="selectNewCustomer()">New Customer</button>';
+    h += '<button class="btn ' + (state.showCustomerSearch || state.selectedCustomerId ? 'btn-primary' : 'btn-secondary') + '" onclick="showCustomerSearch()">Select Existing</button>';
+    h += '</div>';
+    if (state.showCustomerSearch) {
+        h += '<div class="customer-search-panel">';
+        h += '<input type="text" id="checkout-customer-search" placeholder="Search by name, email, company..." oninput="filterCheckoutCustomers()" value="' + esc(state.customerSearchQuery || '') + '">';
+        h += '<div class="customer-search-results">';
+        var sq = (state.customerSearchQuery || '').toLowerCase();
+        var filtered = state.customers.filter(function(c) {
+            if (!sq) return true;
+            return (c.name + ' ' + (c.email || '') + ' ' + (c.company || '')).toLowerCase().indexOf(sq) >= 0;
+        });
+        if (filtered.length === 0) {
+            h += '<p class="text-muted" style="font-size:.82rem;padding:.5rem">No customers found.</p>';
+        } else {
+            filtered.forEach(function(c) {
+                h += '<div class="customer-search-result' + (state.selectedCustomerId === c.id ? ' selected' : '') + '" onclick="selectCheckoutCustomer(\'' + c.id + '\')">';
+                h += '<strong>' + esc(c.name) + '</strong>';
+                h += '<span>' + esc([c.email, c.company, c.phone].filter(Boolean).join(' - ')) + '</span>';
+                h += '</div>';
+            });
+        }
+        h += '</div></div>';
+    }
+    h += '</div>';
+    // Customer form fields
     h += '<div class="checkout-section"><label>Full Name <span class="required">*</span></label><input type="text" id="cd-name" placeholder="John Doe" value="' + esc(cd.name || '') + '"></div>';
     h += '<div class="checkout-section"><label>Email Address <span class="required">*</span></label><input type="email" id="cd-email" placeholder="john@example.com" value="' + esc(cd.email || '') + '"></div>';
     h += '<div class="checkout-section"><label>Street Address <span class="required">*</span></label><input type="text" id="cd-address" placeholder="123 Main Street" value="' + esc(cd.address || '') + '"></div>';
@@ -216,7 +264,51 @@ function addToCart(pid) {
 function removeFromCart(i) { state.cart.splice(i, 1); if (!state.cart.length) state.shopView = 'catalog'; renderShopper(); }
 function showCart() { state.shopView = 'cart'; loadCustomers(true); renderShopper(); }
 function showCatalog() { state.shopView = 'catalog'; renderShopper(); }
-function newOrder() { state.shopView = 'catalog'; state.cart = []; state.currentToken = null; state.currentTransactionId = null; state.paymentResult = null; state.checkoutDetails = {name:'',email:'',address:'',city:'',zip:'',country:'',phone:''}; renderShopper(); }
+function newOrder() {
+    state.shopView = 'catalog';
+    state.cart = [];
+    state.currentToken = null;
+    state.currentTransactionId = null;
+    state.currentOrderId = null;
+    state.paymentResult = null;
+    state.selectedCustomerId = '';
+    state.showCustomerSearch = false;
+    state.customerSearchQuery = '';
+    state.checkoutDetails = {name:'',email:'',address:'',city:'',zip:'',country:'',phone:''};
+    state.apiLogs = [];
+    renderShopper();
+    renderDevPanel();
+}
+
+// ---- Customer Selection Helpers ----
+function selectNewCustomer() {
+    state.selectedCustomerId = '';
+    state.showCustomerSearch = false;
+    state.checkoutDetails = {name:'',email:'',address:'',city:'',zip:'',country:'',phone:''};
+    renderShopper();
+}
+function showCustomerSearch() {
+    state.showCustomerSearch = true;
+    renderShopper();
+}
+function selectCheckoutCustomer(cid) {
+    var c = state.customers.find(function(x) { return x.id === cid; });
+    if (!c) return;
+    state.selectedCustomerId = cid;
+    state.showCustomerSearch = false;
+    state.checkoutDetails.name = c.name || '';
+    state.checkoutDetails.email = c.email || '';
+    state.checkoutDetails.phone = c.phone || '';
+    // Try to parse address if it has commas
+    if (c.address) {
+        state.checkoutDetails.address = c.address;
+    }
+    renderShopper();
+}
+function filterCheckoutCustomers() {
+    state.customerSearchQuery = ($('checkout-customer-search') || {}).value || '';
+    renderShopper();
+}
 
 // ---- Payment Flow ----
 async function checkout() {
@@ -569,16 +661,14 @@ function renderJourneyPanel(data) {
 function closeJourney() { $('order-journey-overlay').classList.add('hidden'); }
 
 // ================ FEATURE AUDIT ================
-async function showFeatureAudit() {
-    var panel = $('feature-audit-panel'), mainView = $('orders-main-view');
-    if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); mainView.classList.remove('hidden'); return; }
-    mainView.classList.add('hidden');
-    panel.classList.remove('hidden');
-    $('feature-audit-content').innerHTML = '<div class="processing-view"><div class="processing-spinner"></div><p>Loading audit...</p></div>';
+async function loadFeatureAudit() {
+    var el = $('feature-audit-content');
+    if (!el) return;
+    el.innerHTML = '<div class="processing-view"><div class="processing-spinner"></div><p>Loading audit...</p></div>';
     try {
         var r = await api('/api/feature-audit');
         if (r.ok) renderFeatureAudit(r.data);
-    } catch(e) { $('feature-audit-content').innerHTML = '<p class="text-muted" style="padding:2rem">Error loading audit.</p>'; }
+    } catch(e) { el.innerHTML = '<p class="text-muted" style="padding:2rem">Error loading audit.</p>'; }
 }
 
 function renderFeatureAudit(data) {
@@ -599,17 +689,13 @@ function renderFeatureAudit(data) {
             h += '<div class="audit-feature-info"><strong>' + esc(f.name) + '</strong>';
             h += '<div class="audit-feature-desc">' + esc(f.description) + '</div>';
             if (f.endpoint) h += '<code class="audit-endpoint">' + esc(f.endpoint) + '</code>';
+            if (!f.implemented && f.activation_note) h += '<div class="audit-activation-note"><strong>How to enable:</strong> ' + esc(f.activation_note) + '</div>';
             h += '</div></div>';
         });
         h += '</div>';
     });
     h += '</div>';
     $('feature-audit-content').innerHTML = h;
-}
-
-function backToOrders() {
-    $('feature-audit-panel').classList.add('hidden');
-    $('orders-main-view').classList.remove('hidden');
 }
 
 // ================ CUSTOMERS VIEW ================
